@@ -1,11 +1,6 @@
 #include "RiscV.h"
 
-/******************************************************************************
-init()
-- Inicializa pc e ri.
-- Começa processamento
-******************************************************************************/
-void RiscV::init() {
+void init() {
 	pc = ri = 0x8000; //Endereço inicial da memória de instruçoes
 	init_event.notify();
 }
