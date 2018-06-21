@@ -37,7 +37,6 @@ SC_MODULE(Cache) {
 
     Cache_Data[set_size];
     int32_t address;
-    int32_t Store_data[burst_size];
     int32_t received_data[burst_size];
     int32_t *retrieved_data;
 
@@ -45,11 +44,9 @@ SC_MODULE(Cache) {
     int set_field;
     int offset_field;
 
-    sc_in<int32_t> Data_in;
     //processor_in fifo
     sc_in<int32_t*> Processor_in;
     sc_fifo_out<int32_t*> Processor_out;
-    sc_in<bool> Write_Signal;
     sc_port<simple_bus_blocking_if> Bus_port;
 
     sc_event processor_receive_event;
@@ -178,24 +175,6 @@ inline void Cache::search_data() {
                     i++;
                     cnt++;
             }
-
-            if(Write_Signal.read()) {
-                for(i=0;i<n_ways;i++) {
-                    if(Cache_Data[set_field][i].Tg == tag_field) {
-                        Cache_Data[set_field][i].Data[offset_field] = Data_in.read();
-                        break;
-                    }
-                }
-                for(cnt=0;cnt<block_size;cnt++) {
-                    Store_data[cnt] = Cache_Data[set_field][i].Data[cnt];
-                }
-                //realizar burst write para a memória
-                status = bus_port->burst_write(cache_unique_priority, Store_data,
-                         address, burst_size, cache_lock);
-                      if (status == SIMPLE_BUS_ERROR)
-                sb_fprintf(stdout, "%s %s : blocking-write failed at address %x\n",
-                    sc_time_stamp().to_string().c_str(), name(), m_address);
-            }
         }
     }
 }
@@ -212,3 +191,4 @@ inline void Cache::send_data() {
 }
 
 #endif
+

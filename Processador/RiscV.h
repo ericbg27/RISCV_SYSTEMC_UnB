@@ -104,7 +104,7 @@ SC_MODULE(RiscV) {
     sc_out<int32_t> P_out_Data; //Saída de endereços para cache de dados
     sc_out<int32_t> P_out_Inst; //Saída de endereços para cache de instruções
     sc_port<sc_signal_out_if<int32_t>, 2> Data; //Dados
-    sc_port<sc_fifo_out_if<bool>, 2> Write_Signal; //Sinal de ativação da escrita, conectado em ambas as caches
+    sc_port<sc_signal_out_if<bool>, 2> Write_Signal; //Sinal de ativação da escrita, conectado em ambas as caches
     sc_event execute_event;
     sc_event fetch_event;
     sc_event decode_event;
