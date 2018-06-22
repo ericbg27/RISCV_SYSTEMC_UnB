@@ -43,7 +43,7 @@ SC_MODULE(Driver) {
         SC_THREAD(Send_Data);
         sensitive << R_data;
 
-        start_addr = 0x2000;
+        start_addr = 0x1000;
         counter = 0;
     }
 };

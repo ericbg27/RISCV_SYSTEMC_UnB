@@ -2,7 +2,7 @@
 
 void RiscV::init() {
 	PC = ri = 0x0000; //Endereço inicial da memória de instruçoes
-	init_event.notify();
+	init_event.notify(SC_ZERO_TIME);
 }
 /******************************************************************************
 fetch()
@@ -12,10 +12,13 @@ fetch()
 void RiscV::fetch() {
     wait(init_event);
     while(true) {
+        //if(PC != 8) {
         P_out_Inst.write(PC);
+        wait(SC_ZERO_TIME);
         ri = P_in_Inst.read();
+        //}
         PC = PC + 4;
-        fetch_event.notify();
+        fetch_event.notify(SC_ZERO_TIME);
         wait(execute_event);
 	}
 }
@@ -52,10 +55,10 @@ void RiscV::decode() {
             kte7 = (ri >> 25) & 0x3F;
             //***************Cálculo do imediato********************
             Imm = kte5 & 0x01;
-            Imm = 10 << Imm;
+            Imm = Imm << 10;
             Imm += (kte5 >> 1) & 0x0F;
-            Imm += 4 << (kte7 & 0x3F);
-            Imm += 11 << ((kte7 >> 6) & 0x01);
+            Imm += (kte7 & 0x3F) << 4;
+            Imm += ((kte7 >> 6) & 0x01) << 11;
             //******************************************************
         } else if(opcode == AUIPC || opcode == LUI) {
             rd = (ri >> 7) & 0x1F;
@@ -68,19 +71,19 @@ void RiscV::decode() {
             rs2 = (ri >> 20) & 0x1F;
             kte7 = (ri >> 25) & 0x3F;
             //***************Cálculo do imediato********************
-            Imm = (5 << kte7) + kte5;
+            Imm = (kte7 << 5) + kte5;
             //******************************************************
         } else if(opcode == JAL) {
             rd = (ri >> 7) & 0x1F;
             kte20 = (ri >> 12) & 0xFFFFF;
             //***************Cálculo do imediato********************
             Imm = (kte20 >> 9) & 0x3FF;
-            Imm += 10 << ((kte20 >> 8) & 0x01);
-            Imm += 11 << (kte20 & 0xFF);
-            Imm += 19 << ((kte20 >> 19) & 0x01);
+            Imm += ((kte20 >> 8) & 0x01) << 10;
+            Imm += (kte20 & 0xFF) << 11;
+            Imm += ((kte20 >> 19) & 0x01) << 19;
             //******************************************************
         }
-        decode_event.notify();
+        decode_event.notify(SC_ZERO_TIME);
         wait(SC_ZERO_TIME);
 	}
 }
@@ -170,30 +173,30 @@ uma vez que esta só acontece no shift aritmético
                 switch(funct3) {
                     case ADD_MUL_ADDI: //BEQ
                         if(breg[rs1]==breg[rs2]) {
-                            PC = PC + (1 << Imm);
+                            PC = PC + (Imm << 1);
                         }
                         break;
                     case SLL: //BNE
                         if(breg[rs1] != breg[rs2]) {
-                            PC = PC + (1 << Imm);
+                            PC = PC + (Imm << 1);
                         }
                         break;
                     case XOR_DIV: //BLT
                         if(breg[rs1] < breg[rs2]) {
-                            PC = PC + (1 << Imm);
+                            PC = PC + (Imm << 1);
                         }
                         break;
                     case SRL: //BGE
                         if(breg[rs1] >= breg[rs2]) {
-                            PC = PC + (1 << Imm);
+                            PC = PC + (Imm << 1);
                         }
                         break;
                 }
             case LUI:
-                breg[rd] = (12 << Imm);
+                breg[rd] = (Imm << 12);
                 break;
             case AUIPC:
-                breg[rd] = PC + (12 << Imm);
+                breg[rd] = PC + (Imm << 12);
                 break;
             case JALR:
                 breg[rd] = PC + 4;
@@ -201,23 +204,21 @@ uma vez que esta só acontece no shift aritmético
                 break;
             case JAL:
                 breg[rd] = PC + 4;
-                PC = PC + (1 << Imm);
+                PC = PC + (Imm << 1);
                 break;
             case LW:
                 if(0xFFC < ((int32_t)breg[rs1]+Imm)) {
                     P_out_Data.write((int32_t)(breg[rs1]+Imm));
+                    wait(SC_ZERO_TIME);
                     breg[rd] = P_in_Data.read();
-                } else {
-                    P_out_Inst.write((int32_t)(breg[rs1]+Imm));
-                    Write_Signal.write(false);
-                    breg[rd] = P_in_Inst.read();
                 }
                 break;
             case SW:
                 if((int32_t)(breg[rs1]+Imm) > 0xFFF) {
-                    P_out_Inst.write((int32_t)(breg[rs1]+Imm));
+                    P_out_Data.write((int32_t)(breg[rs1]+Imm));
                     Data.write(breg[rs2]);
                     Write_Signal.write(true);
+                    wait(SC_ZERO_TIME);
                 }
                 break;
             //case ECALL: //Implementar funções de chamada do sistema

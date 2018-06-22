@@ -8,7 +8,7 @@ int sc_main(int argc, char * argv[]) {
     Driver D("D");
     RiscV RV("RV");
 
-    sc_fifo<int32_t> conn1, conn2, conn3, conn4;
+    sc_fifo<int32_t> conn1(1), conn2(1), conn3(1), conn4(1);
     sc_signal<int32_t> signal1;
     sc_signal<bool> signal2;
 
@@ -26,10 +26,12 @@ int sc_main(int argc, char * argv[]) {
     D.Data(signal1);
     D.Write_Signal(signal2);
 
-    D.Initialize_mem();
+    //D.Initialize_mem();
 
     sc_start();
 
     D.dump_data();
+
+    RV.dump_breg();
     return 0;
 }
