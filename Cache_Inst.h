@@ -71,7 +71,7 @@ SC_MODULE(Cache) {
     , cache_timeout(timeout)
      {
         SC_THREAD(receive_address);
-        sensitive << Processor_in;
+        sensitive << Processor_in; //Dá warning do systemC, talvez retirar
 
         SC_THREAD(search_data);
         sensitive << processor_receive_event;
