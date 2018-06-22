@@ -1,7 +1,7 @@
 #include "RiscV.h"
 
 void init() {
-	pc = ri = 0x8000; //Endereço inicial da memória de instruçoes
+	PC = ri = 0x0000; //Endereço inicial da memória de instruçoes
 	init_event.notify();
 }
 /******************************************************************************
@@ -80,6 +80,8 @@ void RiscV::decode () {
             Imm += 19 << ((kte20 >> 19) & 0x01);
             //******************************************************
         }
+        decode_event.notify();
+        wait(SC_ZERO_TIME);
 	}
 }
 
@@ -96,9 +98,6 @@ void RiscV::dump_breg() {
 }
 
 void RiscV::execute () {
-	int64_t u;
-	char *c;
-
 	while(true) {
         wait(decode_event);
         breg[0] = 0;
@@ -202,29 +201,25 @@ void RiscV::execute () {
                 break;
             case LW:
                 if((int32_t)breg[rs1]+Imm) =< 0xFFC) {
-                    P_out_Data.write((int32_t)(breg[rs1]+Imm)); //casting para 16 bits pois a memoria so tem 16 bits
-                    Data_Write(false);
+                    P_out_Data.write((int32_t)(breg[rs1]+Imm));
                     breg[rd] = P_in_Data.read();
                 } else {
-                    P_out_Inst.write((int32_t)(breg[rs1]+Imm)); //casting para 16 bits pois a memoria so tem 16 bits
-                    Data_Write(false);
+                    P_out_Inst.write((int32_t)(breg[rs1]+Imm));
+                    Write_Signal.write(false);
                     breg[rd] = P_in_Inst.read();
                 }
                 break;
             case SW:
-                if((int32_t)(breg[rs1]+Imm) =< 0xFFC) {
-                    P_out_Data.write((int16_t)(breg[rs1]+Imm));
-                    Data.write(breg[rs2]);
-                    Write_Signal.write(true);
-                } else {
+                if((int32_t)(breg[rs1]+Imm) > 0xFFF) {
                     P_out_Inst.write((int32_t)(breg[rs1]+Imm));
                     Data.write(breg[rs2]);
                     Write_Signal.write(true);
                 }
                 break;
-            case ECALL: //Implementar funções de chamada do sistema
-                break;
+            //case ECALL: //Implementar funções de chamada do sistema
+                //break;
         }
         execute_event.notify();
+        wait(SC_ZERO_TIME);
 	}
 }

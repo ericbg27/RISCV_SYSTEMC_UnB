@@ -42,7 +42,7 @@ SC_MODULE(RiscV) {
         SW=0x23,	    BRANCH=0x63,
         TIPOI=0x13,     AUIPC=0x17,
         JALR=0x67,		JAL=0x6F
-        ECALL=0x73,
+        //ECALL=0x73,
     };
     //******************************************************
     // Identificacao dos registradores do banco do RISCV
@@ -101,10 +101,10 @@ SC_MODULE(RiscV) {
     //****************************************************************************
     sc_fifo_in<int32_t> P_in_Data; //Entrada da cache de dados
     sc_fifo_in<int32_t> P_in_Inst; //Entrada da cache de instruções
-    sc_out<int32_t> P_out_Data; //Saída de endereços para cache de dados
-    sc_out<int32_t> P_out_Inst; //Saída de endereços para cache de instruções
-    sc_port<sc_signal_out_if<int32_t>, 2> Data; //Dados
-    sc_port<sc_signal_out_if<bool>, 2> Write_Signal; //Sinal de ativação da escrita, conectado em ambas as caches
+    sc_fifo_out<int32_t> P_out_Data; //Saída de endereços para cache de dados
+    sc_fifo_out<int32_t> P_out_Inst; //Saída de endereços para cache de instruções
+    sc_out<int32_t> Data; //Dados
+    sc_out<bool> Write_Signal; //Sinal de ativação da escrita
     sc_event execute_event;
     sc_event fetch_event;
     sc_event decode_event;

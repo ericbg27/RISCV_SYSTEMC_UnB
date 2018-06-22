@@ -39,7 +39,7 @@ SC_MODULE(Cache) {
     int32_t address;
     int32_t Store_data[burst_size];
     int32_t received_data[burst_size];
-    int32_t *retrieved_data;
+    int32_t retrieved_data;
 
     int tag_field;
     int set_field;
@@ -47,8 +47,8 @@ SC_MODULE(Cache) {
 
     sc_in<int32_t> Data_in;
     //processor_in fifo
-    sc_in<int32_t*> Processor_in;
-    sc_fifo_out<int32_t*> Processor_out;
+    sc_fifo_in<int32_t> Processor_in;
+    sc_fifo_out<int32_t> Processor_out;
     sc_in<bool> Write_Signal;
     sc_port<simple_bus_blocking_if> Bus_port;
 
@@ -108,7 +108,7 @@ inline void Cache::receive_address() {
     int32_t new_address;
 
     while(true) {
-        address = *(Processor_in.read());
+        address = Processor_in.read();
         address /= 4;
         t.resize(TAG);
         s.resize(SET);
@@ -145,7 +145,7 @@ inline void Cache::search_data() {
         for(i=0;i<n_ways;i++) {
             if(Cache_Data[set_field][i].valid == true) {
                 if(Cache_Data[set_field][i].Tg == tag_field) {
-                    *retrieved_data = Cache_Data[set_field][i].Dt[offset_field];
+                    retrieved_data = Cache_Data[set_field][i].Dt[offset_field];
                     data_found = true;
                     LRU[set_field] = ~LRU[set_field] //????
                     search_event.notify();
