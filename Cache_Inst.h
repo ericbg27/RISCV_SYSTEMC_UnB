@@ -1,5 +1,5 @@
-#ifndef __Cache_h
-#define __Cache_h
+#ifndef __Cache_Inst_h
+#define __Cache_Inst_h
 
 #include "systemc.h"
 #include "simple_bus_blocking_if.h"
@@ -7,10 +7,11 @@
 #include <bitset>
 #include <string>
 #include <stdint.h>
+#include <sstream>
 
 using namespace std;
 
-SC_MODULE(Cache) {
+SC_MODULE(Cache_Inst) {
     const int Bits_per_address = 32;
     const int n_ways = 2; //Número de blocos por set
     const int Cache_size = 1024; //Tamanho em words
@@ -56,9 +57,9 @@ SC_MODULE(Cache) {
     void search_data(); //Procura se o endereço está na cache, caso não esteja envia requisição para a memória
     void send_data(); //Envia o conteúdo do endereço para o processador
 
-    SC_HAS_PROCESS(Cache);
+    SC_HAS_PROCESS(Cache_Inst);
 
-    Cache(sc_module_name name_
+    Cache_Inst(sc_module_name name_
         , unsigned int unique_priority
         , int32_t cache_start_address
         , int32_t cache_end_address
@@ -99,7 +100,7 @@ aqui consideramos word addressing
 - Transforma eles em inteiros e armazena nas variaveis da classe tag_field, set_field e
 offset_field
 *******************************************************************************************/
-inline void Cache::receive_address() {
+inline void Cache_Inst::receive_address() {
     int i;
     string bin_address, t, s, o;
     int32_t new_address;
@@ -115,17 +116,26 @@ inline void Cache::receive_address() {
             if(i < TAG) {
                 t.at(i) = bin_address.at(i);
             } else if (i >= TAG && i < SET+TAG) {
-                s.at(i) = bin_address.at(i);
+                s.at(i-TAG) = bin_address.at(i);
             } else {
-                o.at(i) = bin_address.at(i);
+                o.at(i-(TAG+SET)) = bin_address.at(i);
             }
         }
-
-        tag_field = stoi(t,nullptr,2); //Alterar, SystemC não suporta stoi
-        set_field = stoi(s,nullptr,2);
-        offset_field = stoi(o,nullptr,2);
-    processor_receive_event.notify();
-    wait(SC_ZERO);
+        ss << t;
+        ss >> tag_field;
+        ss.str("");
+        ss.clear();
+        ss << s;
+        ss >> set_field;
+        ss.str("");
+        ss.clear();
+        ss << o;
+        ss >> offset_field;
+        ss.str("");
+        ss.clear();
+        processor_receive_event.notify();
+        wait(SC_ZERO);
+    }
 }
 /**********************************************************************************************
 search_data()
@@ -134,7 +144,7 @@ search_data()
 * Importante ressaltar que deve haver a verificação se a leitura em burst cabe na cache e,
 caso nao caiba deve-se sobrescrever os dados já existentes nos lugares correspondentes
 **********************************************************************************************/
-inline void Cache::search_data() {
+inline void Cache_Inst::search_data() {
     int i, j, k, cnt;
     int32_t new_address;
     while(true) {
@@ -183,7 +193,7 @@ inline void Cache::search_data() {
 send_data
 - Apenas escreve os dados em Processor_out
 ********************************************************************************/
-inline void Cache::send_data() {
+inline void Cache_Inst::send_data() {
     while(true) {
         wait(search_event);
         Processor_out.write(retrieved_data);

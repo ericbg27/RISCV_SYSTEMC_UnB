@@ -118,17 +118,26 @@ inline void Cache::receive_address() {
             if(i < TAG) {
                 t.at(i) = bin_address.at(i);
             } else if (i >= TAG && i < SET+TAG) {
-                s.at(i) = bin_address.at(i);
+                s.at(i-TAG) = bin_address.at(i);
             } else {
-                o.at(i) = bin_address.at(i);
+                o.at(i-(TAG+SET)) = bin_address.at(i);
             }
         }
-
-        tag_field = stoi(t,nullptr,2); //Alterar, SystemC não suporta stoi
-        set_field = stoi(s,nullptr,2);
-        offset_field = stoi(o,nullptr,2);
-    processor_receive_event.notify();
-    wait(SC_ZERO);
+        ss << t;
+        ss >> tag_field;
+        ss.str("");
+        ss.clear();
+        ss << s;
+        ss >> set_field;
+        ss.str("");
+        ss.clear();
+        ss << o;
+        ss >> offset_field;
+        ss.str("");
+        ss.clear();
+        processor_receive_event.notify();
+        wait(SC_ZERO);
+    }
 }
 /**********************************************************************************************
 search_data()
