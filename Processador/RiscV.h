@@ -23,7 +23,7 @@ SC_MODULE(RiscV) {
         ADD_MUL_ADDI=0x00, SLL=0x01,
         SLT=0x02, XOR_DIV=0x04,
         SRL=0x05, OR_REM=0x06,
-        AND=0x07
+        AND=0x07, SLTU=0x03
     };
     //****************************************************************
     // Definicao dos valores do campo de funct7 do RISCV
@@ -32,7 +32,7 @@ SC_MODULE(RiscV) {
         ZERO7=0x00,
         SUB7=0x20,
         MUL_DIV=0x01,
-    }
+    };
     //****************************************************************
     // Definicao dos valores do campo de codigo da operacao do RISCV
     //****************************************************************
@@ -67,11 +67,10 @@ SC_MODULE(RiscV) {
     //**************************************************************
     // Banco de registradores do MIPS
     //**************************************************************
-    extern int32_t breg[32];
+    int32_t breg[32];
     //**************************************************************
     // registradores especiais
     //**************************************************************
-    extern
     int32_t PC,						// contador de programa
             ri;						// registrador de intrucao
     //*****************************************************************************
@@ -83,7 +82,6 @@ SC_MODULE(RiscV) {
     //  Formato U:  | IMM[31:12]  | rd  | OPCODE |
     //  Formato UJ: | IMM[20|10:1|11|19:12]   |   rd   | OPCODE |
     //*****************************************************************************
-    extern
     int32_t	opcode,					// codigo da operacao
             rs1,						// indice registrador rs
             rs2,						// indice registrador rt
@@ -93,7 +91,7 @@ SC_MODULE(RiscV) {
             kte12,					// constante instrucao tipo I
             kte20,					// constante instrucao tipo UJ
             kte5,                  // constante instrução tipos S e SB
-            kte7
+            kte7,
             Imm;                   // constante instrução tipos S e SB
 
     //****************************************************************************
@@ -129,7 +127,7 @@ SC_MODULE(RiscV) {
         sensitive << fetch_event;
         SC_THREAD(execute);
         sensitive << decode_event;
-    }
+    };
 };
 
 #endif

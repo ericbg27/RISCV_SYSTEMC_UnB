@@ -31,7 +31,5 @@ int sc_main(int argc, char * argv[]) {
     sc_start();
 
     D.dump_data();
-
-    dump
     return 0;
 }

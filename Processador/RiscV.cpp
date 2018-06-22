@@ -1,6 +1,6 @@
 #include "RiscV.h"
 
-void init() {
+void RiscV::init() {
 	PC = ri = 0x0000; //Endereço inicial da memória de instruçoes
 	init_event.notify();
 }
@@ -9,10 +9,10 @@ fetch()
 - Busca instrucao na memoria e escreve no registrador de instrucoes ri
 - Incrementa pc
 ******************************************************************************/
-void RiscV::fetch () {
+void RiscV::fetch() {
     wait(init_event);
     while(true) {
-        P_out_Inst.write(pc);
+        P_out_Inst.write(PC);
         ri = P_in_Inst.read();
         PC = PC + 4;
         fetch_event.notify();
@@ -26,7 +26,7 @@ decode()
 - Além disso, calcula o imediato das instruções que o possuem de acordo com o
 formato que ele está na instrução
 *******************************************************************************/
-void RiscV::decode () {
+void RiscV::decode() {
     while(true) {
         wait(fetch_event);
         opcode	= ri & 0x0000007F;
@@ -53,7 +53,7 @@ void RiscV::decode () {
             //***************Cálculo do imediato********************
             Imm = kte5 & 0x01;
             Imm = 10 << Imm;
-            Imm += (kte >> 1) & 0x0F;
+            Imm += (kte5 >> 1) & 0x0F;
             Imm += 4 << (kte7 & 0x3F);
             Imm += 11 << ((kte7 >> 6) & 0x01);
             //******************************************************
@@ -87,8 +87,8 @@ void RiscV::decode () {
 
 
 void RiscV::debug_decode() {
-	cout << "PC = " << pc << endl;
-	cout << "opcode = " << opcode << " rs = " << rs << " rt = " << rt << " rd = " << rd << " shamt = " << shamt << " funct = " << funct << endl;
+	cout << "PC = " << PC << endl;
+	cout << "opcode = " << opcode << " rs1 = " << rs1 << " rs2 = " << rs2 << " rd = " << rd << " funct7 = " << funct7  << " funct3 = " << funct3 << endl;
 }
 
 void RiscV::dump_breg() {
@@ -97,7 +97,11 @@ void RiscV::dump_breg() {
 	}
 }
 
-void RiscV::execute () {
+void RiscV::execute() {
+/**********************************************************************************************
+As operações de shift logico estão com typecast para unsigned visando evitar a extensão de sinal
+uma vez que esta só acontece no shift aritmético
+***********************************************************************************************/
 	while(true) {
         wait(decode_event);
         breg[0] = 0;
@@ -110,7 +114,7 @@ void RiscV::execute () {
                                 breg[rd] = breg[rs1] + breg[rs2];
                                 break;
                             case SLL:
-                                breg[rd] = breg[rs1] << breg[rs2];
+                                breg[rd] = ((uint32_t)breg[rs1]) << breg[rs2];
                                 break;
                             case SLT:
                                 breg[rd] = (breg[rs1]<breg[rs2])?1:0;
@@ -122,7 +126,7 @@ void RiscV::execute () {
                                 breg[rd] = breg[rs1] ^ breg[rs2];
                                 break;
                             case SRL:
-                                breg[rd] = breg[rs1] >> breg[rs2];
+                                breg[rd] = ((uint32_t)breg[rs1]) >> breg[rs2];
                                 break;
                             case OR_REM:
                                 breg[rd] = breg[rs1] | breg[rs2];
@@ -137,7 +141,7 @@ void RiscV::execute () {
                                 breg[rd] = breg[rs1] - breg[rs2];
                                 break;
                             case SRL: //SRA
-                                breg[rd] = breg[rs1] >>> breg[rs2];
+                                breg[rd] = breg[rs1] >> breg[rs2];
                                 break;
                         }
                 }
@@ -153,7 +157,7 @@ void RiscV::execute () {
                         breg[rd] = breg[rs1] ^ Imm;
                         break;
                     case SRL: //SRLI
-                        breg[rd] = breg[rs1] >> Imm;
+                        breg[rd] = ((uint32_t)breg[rs1]) >> Imm;
                         break;
                     case OR_REM: //ORI
                         breg[rd] = breg[rs1] | Imm;
@@ -200,7 +204,7 @@ void RiscV::execute () {
                 PC = PC + (1 << Imm);
                 break;
             case LW:
-                if((int32_t)breg[rs1]+Imm) =< 0xFFC) {
+                if(0xFFC < ((int32_t)breg[rs1]+Imm)) {
                     P_out_Data.write((int32_t)(breg[rs1]+Imm));
                     breg[rd] = P_in_Data.read();
                 } else {

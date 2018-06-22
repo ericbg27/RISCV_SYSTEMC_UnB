@@ -25,7 +25,7 @@ void Driver::Receive_addr() {
     while(true) {
         data_addr = P_in_Data.read();
         if(Write_Signal.read()) {
-            MEM[data_addr-start_addr] = Data.read();
+            Data_MEM[data_addr-start_addr] = Data.read();
         } else {
             R_data.notify();
         }
@@ -42,7 +42,7 @@ void Driver::Send_Data() {
 void Driver::Send_Inst() {
     while(true) {
         P_out_Inst.write(Inst_MEM[pc_value]);
-        if(counter == MAX_INST) { //Limitado a 10 instruções dado o tamanho de Inst_MEM, podendo ser alterado
+        if(counter == 10) { //Limitado a 10 instruções dado o tamanho de Inst_MEM, podendo ser alterado
             sc_stop();
             break;
         }
