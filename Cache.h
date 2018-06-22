@@ -124,7 +124,7 @@ inline void Cache::receive_address() {
             }
         }
 
-        tag_field = stoi(t,nullptr,2);
+        tag_field = stoi(t,nullptr,2); //Alterar, SystemC não suporta stoi
         set_field = stoi(s,nullptr,2);
         offset_field = stoi(o,nullptr,2);
     processor_receive_event.notify();
