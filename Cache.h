@@ -3,10 +3,13 @@
 
 #include "systemc.h"
 #include "simple_bus_blocking_if.h"
+#include "simple_bus_types.h"
 #include <math.h>
 #include <bitset>
 #include <string>
 #include <stdint.h>
+#include <sstream>
+
 
 using namespace std;
 
@@ -35,7 +38,6 @@ SC_MODULE(Cache) {
 
     bool LRU[set_size] = {0};
 
-    Cache_Data[set_size];
     int32_t address;
     int32_t Store_data[burst_size];
     int32_t received_data[burst_size];
@@ -69,7 +71,8 @@ SC_MODULE(Cache) {
         , int timeout   )
     : sc_module(name_)
     , cache_unique_priority(unique_priority)
-    , cache_address(address)
+    , cache_start_address(cache_start_address)
+    , cache_end_address(cache_end_address)
     , cache_lock(lock)
     , cache_timeout(timeout)
      {
@@ -106,6 +109,8 @@ inline void Cache::receive_address() {
     int i;
     string bin_address, t, s, o;
     int32_t new_address;
+    stringstream ss;
+
 
     while(true) {
         address = Processor_in.read();
@@ -156,7 +161,7 @@ inline void Cache::search_data() {
                 if(Cache_Data[set_field][i].Tg == tag_field) {
                     retrieved_data = Cache_Data[set_field][i].Dt[offset_field];
                     data_found = true;
-                    LRU[set_field] = ~LRU[set_field] //????
+                    LRU[set_field] = ~LRU[set_field]; //????
                     search_event.notify();
                 }
             }
@@ -180,7 +185,7 @@ inline void Cache::search_data() {
 
             while(i < block_size && cnt < burst_size) {
                     Cache_Data[j][k].Dt[i] = received_data[cnt];
-                    if(Cache_Data[j][k].valid = false)
+                    if(Cache_Data[j][k].valid == false)
                         Cache_Data[j][k].valid = true;
                     LRU[j] = ~LRU[j]; //Alteração do LRU
                     Cache_Data[j][k].Tg = tag_field;
@@ -191,19 +196,19 @@ inline void Cache::search_data() {
             if(Write_Signal.read()) {
                 for(i=0;i<n_ways;i++) {
                     if(Cache_Data[set_field][i].Tg == tag_field) {
-                        Cache_Data[set_field][i].Data[offset_field] = Data_in.read();
+                        Cache_Data[set_field][i].Dt[offset_field] = Data_in.read();
                         break;
                     }
                 }
                 for(cnt=0;cnt<block_size;cnt++) {
-                    Store_data[cnt] = Cache_Data[set_field][i].Data[cnt];
+                    Store_data[cnt] = Cache_Data[set_field][i].Dt[cnt];
                 }
                 //realizar burst write para a memória
-                status = bus_port->burst_write(cache_unique_priority, Store_data,
+                status = Bus_port->burst_write(cache_unique_priority, Store_data,
                          address, burst_size, cache_lock);
                       if (status == SIMPLE_BUS_ERROR)
                 sb_fprintf(stdout, "%s %s : blocking-write failed at address %x\n",
-                    sc_time_stamp().to_string().c_str(), name(), m_address);
+                    sc_time_stamp().to_string().c_str(), name(), address);
             }
         }
     }
