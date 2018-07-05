@@ -107,7 +107,7 @@ SC_MODULE(RiscV) {
     sc_event fetch_event;
     sc_event decode_event;
     sc_event init_event;
-
+    sc_in<bool> ready_signal;
 
     //****************************************************************************
     // Funcoes definidas em RiscV.cpp

@@ -2,6 +2,10 @@
 
 void RiscV::init() {
 	PC = ri = 0x0000; //Endereço inicial da memória de instruçoes
+	memset(breg, 0, sizeof breg);
+	while(ready_signal.read()){
+		wait(SC_ZERO_TIME);
+	}
 	init_event.notify(SC_ZERO_TIME);
 }
 /******************************************************************************
@@ -13,11 +17,17 @@ void RiscV::fetch() {
     wait(init_event);
     while(true) {
         //if(PC != 8) {
+		cout << "FETCH\n" << endl;
         P_out_Inst.write(PC);
-        wait(SC_ZERO_TIME);
+        //wait(SC_ZERO_TIME);
+        cout << "Passou write PC\n";
         ri = P_in_Inst.read();
+        cout << "Passou ri read:" << ri << "\n";
         //}
+
+		//if (ri == 0x00) break;
         PC = PC + 4;
+		cout << "ri: " << ri << endl;
         fetch_event.notify(SC_ZERO_TIME);
         wait(execute_event);
 	}
@@ -83,6 +93,7 @@ void RiscV::decode() {
             Imm += ((kte20 >> 19) & 0x01) << 19;
             //******************************************************
         }
+		cout << "DECODE\n" << endl;
         decode_event.notify(SC_ZERO_TIME);
         wait(SC_ZERO_TIME);
 	}
@@ -107,7 +118,9 @@ uma vez que esta só acontece no shift aritmético
 ***********************************************************************************************/
 	while(true) {
         wait(decode_event);
+		cout << "EXECUTE" << endl;
         breg[0] = 0;
+        cout << "opcode:" << opcode << endl;
         switch (opcode) {
             case OPC_R:
                 switch(funct7) {
@@ -115,6 +128,7 @@ uma vez que esta só acontece no shift aritmético
                         switch(funct3) {
                             case ADD_MUL_ADDI:
                                 breg[rd] = breg[rs1] + breg[rs2];
+								cout << "breg[" << rd << "]:" << breg[rd] << endl;
                                 break;
                             case SLL:
                                 breg[rd] = ((uint32_t)breg[rs1]) << breg[rs2];
@@ -138,6 +152,7 @@ uma vez que esta só acontece no shift aritmético
                                 breg[rd] = breg[rs1] & breg[rs2];
                                 break;
                         }
+						break;
                     case SUB7:
                         switch(funct3) {
                             case ADD_MUL_ADDI: //SUB
@@ -147,11 +162,14 @@ uma vez que esta só acontece no shift aritmético
                                 breg[rd] = breg[rs1] >> breg[rs2];
                                 break;
                         }
+						break;
                 }
+				break;
             case TIPOI:
                 switch(funct3) {
                     case ADD_MUL_ADDI: //ADDI
                         breg[rd] = breg[rs1] + Imm;
+						
                         break;
                     case SLT: //SLTI
                         breg[rd] = (breg[rs1]<Imm)?1:0;
@@ -169,37 +187,39 @@ uma vez que esta só acontece no shift aritmético
                         breg[rd] = breg[rs1] & Imm;
                         break;
                 }
+				break;
             case BRANCH:
                 switch(funct3) {
                     case ADD_MUL_ADDI: //BEQ
                         if(breg[rs1]==breg[rs2]) {
-                            PC = PC + (Imm << 1);
+                            PC = (PC-4) + (Imm << 1);
                         }
                         break;
                     case SLL: //BNE
                         if(breg[rs1] != breg[rs2]) {
-                            PC = PC + (Imm << 1);
+                            PC = (PC-4) + (Imm << 1);
                         }
                         break;
                     case XOR_DIV: //BLT
                         if(breg[rs1] < breg[rs2]) {
-                            PC = PC + (Imm << 1);
+                            PC = (PC-4) + (Imm << 1);
                         }
                         break;
                     case SRL: //BGE
                         if(breg[rs1] >= breg[rs2]) {
-                            PC = PC + (Imm << 1);
+                            PC = (PC-4) + (Imm << 1);
                         }
                         break;
                 }
+				break;
             case LUI:
                 breg[rd] = (Imm << 12);
                 break;
             case AUIPC:
-                breg[rd] = PC + (Imm << 12);
+                breg[rd] = (PC-4) + (Imm << 12);
                 break;
             case JALR:
-                breg[rd] = PC + 4;
+                breg[rd] = PC;
                 PC = (breg[rs1] + Imm)&(!1);
                 break;
             case JAL:
@@ -224,6 +244,7 @@ uma vez que esta só acontece no shift aritmético
             //case ECALL: //Implementar funções de chamada do sistema
                 //break;
         }
+		cout << "breg[" << rd << "]:" << breg[rd] << endl;
         execute_event.notify();
         wait(SC_ZERO_TIME);
 	}

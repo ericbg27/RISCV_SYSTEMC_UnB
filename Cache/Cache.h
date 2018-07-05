@@ -1,3 +1,4 @@
+//MODIFICADO
 #ifndef __Cache_h
 #define __Cache_h
 
@@ -10,19 +11,18 @@
 #include <stdint.h>
 #include <sstream>
 
-
 using namespace std;
 
 SC_MODULE(Cache) {
-    const int Bits_per_address = 32;
-    const int n_ways = 2; //Número de blocos por set
-    const int Cache_size = 1024; //Tamanho em words
-    const int block_size = 4; //Words por bloco
-    const int set_size = Cache_size/(n_ways*block_size);
-    const int OFFSET = log2(block_size);
-    const int SET = log2(set_size);
-    const int TAG = Bits_per_address - SET - OFFSET;
-    const int burst_size = block_size;
+    static const int Bits_per_address = 32;
+    static const int n_ways = 2; //Número de blocos por set
+    static const int Cache_size = 1024; //Tamanho em words
+    static const int block_size = 4; //Words por bloco
+    static const int set_size = Cache_size/(n_ways*block_size);
+    static const int OFFSET = log2(block_size);
+    static const int SET = log2(set_size);
+    static const int TAG = Bits_per_address - SET - OFFSET;
+    static const int burst_size = block_size;
 
     simple_bus_status status;
 
@@ -43,10 +43,6 @@ SC_MODULE(Cache) {
     int32_t received_data[burst_size];
     int32_t retrieved_data;
 
-    int tag_field;
-    int set_field;
-    int offset_field;
-
     sc_in<int32_t> Data_in;
     //processor_in fifo
     sc_fifo_in<int32_t> Processor_in;
@@ -56,6 +52,10 @@ SC_MODULE(Cache) {
 
     sc_event processor_receive_event;
     sc_event search_event;
+
+    int tag_field;
+    int set_field;
+    int offset_field;
 
     void receive_address(); //Recebe endereço do processador
     void search_data(); //Procura se o endereço está na cache, caso não esteja envia requisição para a memória
@@ -77,7 +77,6 @@ SC_MODULE(Cache) {
     , cache_timeout(timeout)
      {
         SC_THREAD(receive_address);
-        sensitive << Processor_in; //Dá warning do systemC, talvez retirar
 
         SC_THREAD(search_data);
         sensitive << processor_receive_event;
@@ -108,9 +107,7 @@ offset_field
 inline void Cache::receive_address() {
     int i;
     string bin_address, t, s, o;
-    int32_t new_address;
     stringstream ss;
-
 
     while(true) {
         address = Processor_in.read();
@@ -141,7 +138,7 @@ inline void Cache::receive_address() {
         ss.str("");
         ss.clear();
         processor_receive_event.notify();
-        wait(SC_ZERO);
+        wait(SC_ZERO_TIME);
     }
 }
 /**********************************************************************************************
@@ -167,7 +164,7 @@ inline void Cache::search_data() {
             }
         }
         new_address = address - offset_field;
-        if(data_found == false) {
+        if(data_found == false) { //Acho que falta o notify para o data_found == false && write_signal.read() == false
             status = Bus_port->burst_read(cache_unique_priority, received_data,
                      new_address, burst_size, cache_lock);
             if (status == SIMPLE_BUS_ERROR)
@@ -205,11 +202,12 @@ inline void Cache::search_data() {
                 }
                 //realizar burst write para a memória
                 status = Bus_port->burst_write(cache_unique_priority, Store_data,
-                         address, burst_size, cache_lock);
-                      if (status == SIMPLE_BUS_ERROR)
-                sb_fprintf(stdout, "%s %s : blocking-write failed at address %x\n",
-                    sc_time_stamp().to_string().c_str(), name(), address);
-            }
+                         address, burst_size, cache_lock); //MANDANDO ENDEREÇO
+                	if (status == SIMPLE_BUS_ERROR)
+                		sb_fprintf(stdout, "%s %s : blocking-write failed at address %x\n",
+                	    sc_time_stamp().to_string().c_str(), name(), address);
+            }else
+            	search_event.notify(); //COLOQUEI AK POR VIA DAS DUVIDAS
         }
     }
 }
@@ -222,6 +220,9 @@ inline void Cache::send_data() {
     while(true) {
         wait(search_event);
         Processor_out.write(retrieved_data);
+        //RETRIEVED DATA NAO RECEBE NADA
+        //QUEM ESTA RECEBENDO DO BUS E RECEIVED DATA
+        //PASSAR PARA VARIAVEL
     }
 }
 
