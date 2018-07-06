@@ -117,7 +117,6 @@ offset_field
 inline void Cache_inst::receive_address() {
     int i;
     string bin_address, t, s, o;
-    stringstream ss;
 
     while(true) {
         address = Processor_in.read();
@@ -165,6 +164,7 @@ inline void Cache_inst::search_data() {
                 }
             }
         }
+        //MUDAR ADDRES PARA *4 ???
         new_address = address - offset_field;
         if(data_found == false) { //Acho que falta o notify para o data_found == false && write_signal.read() == false
             status = Bus_port->burst_read(cache_unique_priority, received_data,
