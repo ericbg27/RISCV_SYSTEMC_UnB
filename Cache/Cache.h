@@ -104,9 +104,8 @@ inline void Cache::receive_address() {
 	string bin_address, t, s, o;
 	while (true) {
 		address = Processor_in.read();
-		cout << "Address 1: " << address << endl;
+		cout << "Address Data_Cache: " << address << endl;
 		address /= 4;
-		cout << "Address 2: " << address << endl;
 		t.resize(TAG);
 		s.resize(SET);
 		o.resize(OFFSET);
@@ -140,6 +139,7 @@ inline void Cache::search_data() {
 	int32_t new_address;
 	while (true) {
 		wait(processor_receive_event);
+		data_found = false;
 		if (Write_Signal.read()) {
 			for (i = 0; i < n_ways; i++) {
 				if (Cache_Data[set_field][i].Tg == tag_field) {
@@ -151,7 +151,6 @@ inline void Cache::search_data() {
 				Store_data[cnt] = Cache_Data[set_field][i].Dt[cnt];
 			}
 			//realizar burst write para a memória
-			cout << "Address: " << address << endl;
 			status = Bus_port->burst_write(cache_unique_priority, Store_data,
 					address * 4, burst_size, cache_lock); //MANDANDO ENDEREÇO
 			if (status == SIMPLE_BUS_ERROR)
@@ -165,13 +164,12 @@ inline void Cache::search_data() {
 						retrieved_data =
 								Cache_Data[set_field][i].Dt[offset_field];
 						data_found = true;
-						LRU[set_field] = ~LRU[set_field]; //????
+						LRU[set_field] = ~LRU[set_field];
 						search_event.notify();
 					}
 				}
 			}
-			//SERA ???
-			new_address = (address * 4) - offset_field;
+			new_address = (address * 4) - (offset_field*4);
 			if (data_found == false) {
 				status = Bus_port->burst_read(cache_unique_priority,
 						received_data, new_address, burst_size, cache_lock);
@@ -199,7 +197,7 @@ inline void Cache::search_data() {
 					i++;
 					cnt++;
 				}
-				retrieved_data = received_data[0];
+				retrieved_data = received_data[offset_field];
 				search_event.notify();
 
 			}

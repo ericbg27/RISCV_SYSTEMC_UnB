@@ -45,33 +45,24 @@
 #include "simple_bus_arbiter.h"
 #include "Cache.h"
 #include "Cache_inst.h"
-//#include "driver.h"
 #include "RiscV.h"
 #include "init_process.h"
-//#include "Driver.h"
 
 int sc_main(int, char **) {
 	// channels
 	sc_clock C1;
 	// module instances
-	//  simple_bus_master_blocking     *master_b;
-//  simple_bus_master_non_blocking *master_nb;
 	simple_bus_master_direct *master_d;
 	simple_bus_slow_mem *mem_slow;
 	simple_bus *bus;
 	simple_bus_fast_mem *mem_fast;
 	simple_bus_arbiter *arbiter;
-//  master_b = new simple_bus_master_blocking("master_b", 4, 0x4c, false, 300);
-//  master_nb = new simple_bus_master_non_blocking("master_nb", 3, 0x38, false, 20);
-	master_d = new simple_bus_master_direct("master_d", 0x20, 0xff);
+	master_d = new simple_bus_master_direct("master_d", 0x40, 0xff);
 	mem_fast = new simple_bus_fast_mem("mem_fast", 0x00, 0x7f);
 	mem_slow = new simple_bus_slow_mem("mem_slow", 0x80, 0xff, 1);
-	// bus = new simple_bus("bus",true); // verbose output
 	bus = new simple_bus("bus");
-	// arbiter = new simple_bus_arbiter("arbiter",true); // verbose output
 	arbiter = new simple_bus_arbiter("arbiter");
 
-//  cache_driver driver("driver");
 	Cache data_cache("data_cache", 0, 0, 0xff, false, 100);
 	Cache_inst inst_cache("inst_cache", 0, 0, 0xff, false, 100);
 	RiscV RV("RV");
@@ -85,20 +76,13 @@ int sc_main(int, char **) {
 	// connect instances
 	master_d->clock(C1);
 	bus->clock(C1);
-//  master_b->clock(C1);
-//  master_nb->clock(C1);
+
 	mem_slow->clock(C1);
 	master_d->bus_port(*bus);
-//  master_b->bus_port(*bus);
-//  master_nb->bus_port(*bus);
+
 	bus->arbiter_port(*arbiter);
 	bus->slave_port(*mem_slow);
 	bus->slave_port(*mem_fast);
-
-//  driver.Data_in(Data_in);
-//  driver.Processor_in(Processor_in);
-//  driver.Processor_out(Processor_out);
-//  driver.Write_Signal(Write_Signal);
 
 	RV.P_in_Data(Processor_out_data);
 	RV.P_in_Inst(Processor_out_inst);
@@ -121,11 +105,7 @@ int sc_main(int, char **) {
 	init.bus_port(*bus);
 	init.ready_signal(ready_signal);
 
-//  sc_start(10000, SC_NS);
-	//D.Initialize_mem();
-
-	sc_start(10000, SC_NS);
-//	    D.dump_data();
+	sc_start(200000, SC_NS);
 
 	RV.dump_breg();
 

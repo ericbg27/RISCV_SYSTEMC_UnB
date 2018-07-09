@@ -16,18 +16,14 @@ void RiscV::init() {
 void RiscV::fetch() {
 	wait(init_event);
 	while (true) {
-		//if(PC != 8) {
-		cout << "FETCH\n" << endl;
+		cout << "\nFETCH" << endl;
 		P_out_Inst.write(PC);
-		//wait(SC_ZERO_TIME);
-		cout << "Passou write PC\n";
 		ri = P_in_Inst.read();
-		cout << "Passou ri read:" << ri << "\n";
-		//}
-
-		//if (ri == 0x00) break;
+		if(ri == 0){
+			sc_stop();
+		}
+		cout << "Ri: " << ri << endl;
 		PC = PC + 4;
-		cout << "ri: " << ri << endl;
 		fetch_event.notify(SC_ZERO_TIME);
 		wait(execute_event);
 	}
@@ -49,7 +45,7 @@ void RiscV::decode() {
 			rs1 = (ri >> 15) & 0x1F;
 			rs2 = (ri >> 20) & 0x1F;
 			funct7 = (ri >> 25) & 0x7F;
-		} else if (opcode == TIPOI || opcode == LW) {
+		} else if (opcode == TIPOI || opcode == LW || opcode == JALR) {
 			rd = (ri >> 7) & 0x1F;
 			funct3 = (ri >> 12) & 0x07;
 			rs1 = (ri >> 15) & 0x1F;
@@ -93,7 +89,7 @@ void RiscV::decode() {
 			Imm += ((kte20 >> 19) & 0x01) << 19;
 			//******************************************************
 		}
-		cout << "DECODE\n" << endl;
+		cout << "\nDECODE" << endl;
 		decode_event.notify(SC_ZERO_TIME);
 		wait(SC_ZERO_TIME);
 	}
@@ -119,7 +115,7 @@ void RiscV::execute() {
 	 ***********************************************************************************************/
 	while (true) {
 		wait(decode_event);
-		cout << "EXECUTE" << endl;
+		cout << "\nEXECUTE" << endl;
 		breg[0] = 0;
 		cout << "opcode:" << opcode << endl;
 		switch (opcode) {
@@ -223,11 +219,11 @@ void RiscV::execute() {
 			break;
 		case JALR:
 			breg[rd] = PC;
-			PC = (breg[rs1] + Imm) & (!1);
+			PC = (breg[rs1] + Imm);
 			break;
 		case JAL:
-			breg[rd] = PC + 4;
-			PC = PC + (Imm << 1);
+			breg[rd] = PC;
+			PC = (PC-4) + (Imm << 1);
 			break;
 		case LW:
 			//MUDAR FAIXA DE ENDEREÇO
@@ -243,6 +239,7 @@ void RiscV::execute() {
 		case SW:
 			//MUDAR FAIXA DE ENDEREÇO
 			if ((int32_t) (breg[rs1] + Imm) >= 0x020) {
+				wait(10, SC_NS);
 				P_out_Data.write((int32_t) (breg[rs1] + Imm));
 				Data.write(breg[rs2]);
 				Write_Signal.write(true);
