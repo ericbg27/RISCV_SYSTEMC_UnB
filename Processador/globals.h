@@ -5,7 +5,7 @@
 
 int32_t breg[32];
 
-int32_t pc,						// contador de programa
+int32_t PC,						// contador de programa
         ri;						// registrador de intrucao
 
 int32_t	opcode,					// codigo da operacao

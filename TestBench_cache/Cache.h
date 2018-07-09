@@ -1,25 +1,28 @@
+//MODIFICADO
 #ifndef __Cache_h
 #define __Cache_h
 
 #include "systemc.h"
 #include "simple_bus_blocking_if.h"
+#include "simple_bus_types.h"
 #include <math.h>
 #include <bitset>
 #include <string>
 #include <stdint.h>
+#include <sstream>
 
 using namespace std;
 
 SC_MODULE(Cache) {
-    const int Bits_per_address = 16;
-    const int n_ways = 2; //Número de blocos por set
-    const int Cache_size = 256; //Tamanho em words
-    const int block_size = 8; //Words por bloco
-    const int set_size = Cache_size/(n_ways*block_size);
-    const int OFFSET = log2(block_size*n_ways);
-    const int SET = log2(set_size);
-    const int TAG = Bits_per_address - SET - OFFSET;
-    const int burst_size = block_size;
+    static const int Bits_per_address = 32;
+    static const int n_ways = 2; //Número de blocos por set
+    static const int Cache_size = 1024; //Tamanho em words
+    static const int block_size = 4; //Words por bloco
+    static const int set_size = Cache_size/(n_ways*block_size);
+    static const int OFFSET = log2(block_size);
+    static const int SET = log2(set_size);
+    static const int TAG = Bits_per_address - SET - OFFSET;
+    static const int burst_size = block_size;
 
     simple_bus_status status;
 
@@ -28,25 +31,31 @@ SC_MODULE(Cache) {
     typedef struct {
         bool valid;
         int Tg;
-        int32_t Dt;
+        int32_t Dt[block_size];
     } blocks;
 
     blocks Cache_Data[set_size][n_ways];
 
-    int16_t address;
+    bool LRU[set_size] = {0};
+
+    int32_t address;
+    int32_t Store_data[burst_size];
     int32_t received_data[burst_size];
-    int32_t *retrieved_data;
+    int32_t retrieved_data;
 
-    int tag_field;
-    int set_field;
-    int offset_field;
-
-    sc_in<int16_t*> Processor_in;
-    sc_out<int32_t*> Processor_out;
+    sc_in<int32_t> Data_in;
+    //processor_in fifo
+    sc_fifo_in<int32_t> Processor_in;
+    sc_fifo_out<int32_t> Processor_out;
+    sc_in<bool> Write_Signal;
     sc_port<simple_bus_blocking_if> Bus_port;
 
     sc_event processor_receive_event;
     sc_event search_event;
+
+    int tag_field;
+    int set_field;
+    int offset_field;
 
     void receive_address(); //Recebe endereço do processador
     void search_data(); //Procura se o endereço está na cache, caso não esteja envia requisição para a memória
@@ -55,19 +64,19 @@ SC_MODULE(Cache) {
     SC_HAS_PROCESS(Cache);
 
     Cache(sc_module_name name_
-    , unsigned int unique_priority
-    , int16_t cache_start_address
-    , int16_t cache_end_address
-    , bool lock
-    , int timeout)
+        , unsigned int unique_priority
+        , int32_t cache_start_address
+        , int32_t cache_end_address
+        , bool lock
+        , int timeout   )
     : sc_module(name_)
     , cache_unique_priority(unique_priority)
-    , cache_address(address)
+    , cache_start_address(cache_start_address)
+    , cache_end_address(cache_end_address)
     , cache_lock(lock)
     , cache_timeout(timeout)
      {
         SC_THREAD(receive_address);
-        sensitive << Processor_in;
 
         SC_THREAD(search_data);
         sensitive << processor_receive_event;
@@ -80,8 +89,8 @@ SC_MODULE(Cache) {
 
     private:
         unsigned int cache_unique_priority;
-        int16_t cache_start_address;
-        int16_t cache_end_address;
+        int32_t cache_start_address;
+        int32_t cache_end_address;
         bool cache_lock;
         int cache_timeout;
 };
@@ -98,9 +107,10 @@ offset_field
 inline void Cache::receive_address() {
     int i;
     string bin_address, t, s, o;
+    stringstream ss;
 
     while(true) {
-        address = *(Processor_in.read());
+        address = Processor_in.read();
         address /= 4;
         t.resize(TAG);
         s.resize(SET);
@@ -110,16 +120,26 @@ inline void Cache::receive_address() {
             if(i < TAG) {
                 t.at(i) = bin_address.at(i);
             } else if (i >= TAG && i < SET+TAG) {
-                s.at(i) = bin_address.at(i);
+                s.at(i-TAG) = bin_address.at(i);
             } else {
-                o.at(i) = bin_address.at(i);
+                o.at(i-(TAG+SET)) = bin_address.at(i);
             }
         }
-        tag_field = stoi(t,nullptr,2);
-        set_field = stoi(s,nullptr,2);
-        offset_field = stoi(o,nullptr,2);
+        ss << t;
+        ss >> tag_field;
+        ss.str("");
+        ss.clear();
+        ss << s;
+        ss >> set_field;
+        ss.str("");
+        ss.clear();
+        ss << o;
+        ss >> offset_field;
+        ss.str("");
+        ss.clear();
+        processor_receive_event.notify();
+        wait(SC_ZERO_TIME);
     }
-    processor_receive_event.notify();
 }
 /**********************************************************************************************
 search_data()
@@ -130,48 +150,64 @@ caso nao caiba deve-se sobrescrever os dados já existentes nos lugares correspo
 **********************************************************************************************/
 inline void Cache::search_data() {
     int i, j, k, cnt;
+    int32_t new_address;
     while(true) {
         wait(processor_receive_event);
         for(i=0;i<n_ways;i++) {
             if(Cache_Data[set_field][i].valid == true) {
                 if(Cache_Data[set_field][i].Tg == tag_field) {
-                    *retrieved_data = Cache_Data[set_field][i].Dt[offset_field];
+                    retrieved_data = Cache_Data[set_field][i].Dt[offset_field];
                     data_found = true;
+                    LRU[set_field] = ~LRU[set_field]; //????
                     search_event.notify();
                 }
             }
         }
-        if(data_found == false) {
+        new_address = address - offset_field;
+        if(data_found == false) { //Acho que falta o notify para o data_found == false && write_signal.read() == false
             status = Bus_port->burst_read(cache_unique_priority, received_data,
-                     address, burst_size, cache_lock);
+                     new_address, burst_size, cache_lock);
             if (status == SIMPLE_BUS_ERROR)
                 sb_fprintf(stdout, "%s %s : cache-read failed at address %x\n",
                 sc_time_stamp().to_string().c_str(), name(), address);
 
             cnt = 0;
-            i = offset_field;
+            i = 0;
             j = set_field;
-            k = tag_field;
+            if(LRU[j] == 0) {
+                k = 0;
+            } else {
+                k = 1;
+            }
 
-            while(i < set_size && cnt < burst_size) {
+            while(i < block_size && cnt < burst_size) {
                     Cache_Data[j][k].Dt[i] = received_data[cnt];
+                    if(Cache_Data[j][k].valid == false)
+                        Cache_Data[j][k].valid = true;
+                    LRU[j] = ~LRU[j]; //Alteração do LRU
+                    Cache_Data[j][k].Tg = tag_field;
                     i++;
                     cnt++;
             }
-            if(cnt < burst_size) {
-                i = 0;
-                if(k < n_ways-1) {
-                    k++;
-                } else {
-                    k = 0;
-                    j++;
+
+            if(Write_Signal.read()) {
+                for(i=0;i<n_ways;i++) {
+                    if(Cache_Data[set_field][i].Tg == tag_field) {
+                        Cache_Data[set_field][i].Dt[offset_field] = Data_in.read();
+                        break;
+                    }
                 }
-                while(i < set_size && cnt < burst_size){
-                    Cache_Data[j][k].Dt[i] = received_data[cnt];
-                    i++;
-                    cnt++;
+                for(cnt=0;cnt<block_size;cnt++) {
+                    Store_data[cnt] = Cache_Data[set_field][i].Dt[cnt];
                 }
-            }
+                //realizar burst write para a memória
+                status = Bus_port->burst_write(cache_unique_priority, Store_data,
+                         address, burst_size, cache_lock);
+                      if (status == SIMPLE_BUS_ERROR)
+                sb_fprintf(stdout, "%s %s : blocking-write failed at address %x\n",
+                    sc_time_stamp().to_string().c_str(), name(), address);
+            }else
+            	search_event.notify(); //COLOQUEI AK POR VIA DAS DUVIDAS
         }
     }
 }
