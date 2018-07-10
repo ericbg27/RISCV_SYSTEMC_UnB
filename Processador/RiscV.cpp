@@ -247,8 +247,6 @@ void RiscV::execute() {
 
 			}
 			break;
-			//case ECALL: //Implementar funções de chamada do sistema
-			//break;
 		}
 		cout << "breg[" << rd << "]:" << breg[rd] << endl;
 		execute_event.notify();

@@ -33,7 +33,7 @@ SC_MODULE(Cache) {
 	typedef struct {
 		bool valid;
 		int Tg;
-		int32_t Dt[block_size];
+		int32_t Dt[block_size] = {0};
 	} blocks;
 
 	blocks Cache_Data[set_size][n_ways];
@@ -62,6 +62,7 @@ SC_MODULE(Cache) {
 	void receive_address(); //Recebe endereço do processador
 	void search_data(); //Procura se o endereço está na cache, caso não esteja envia requisição para a memória
 	void send_data(); //Envia o conteúdo do endereço para o processador
+	void dump_cache();
 
 	SC_HAS_PROCESS(Cache);
 
@@ -99,32 +100,45 @@ private:
  - Transforma eles em inteiros e armazena nas variaveis da classe tag_field, set_field e
  offset_field
  *******************************************************************************************/
+
 inline void Cache::receive_address() {
 	int i;
 	string bin_address, t, s, o;
 	while (true) {
 		address = Processor_in.read();
 		cout << "Address Data_Cache: " << address << endl;
-		address /= 4;
-		t.resize(TAG);
-		s.resize(SET);
-		o.resize(OFFSET);
-		bin_address = bitset<Bits_per_address>(address).to_string();
-		for (i = 0; i < Bits_per_address; i++) {
-			if (i < TAG) {
-				t.at(i) = bin_address.at(i);
-			} else if (i >= TAG && i < SET + TAG) {
-				s.at(i - TAG) = bin_address.at(i);
-			} else {
-				o.at(i - (TAG + SET)) = bin_address.at(i);
+		//Endereço de bypass
+		if(address >= 2000){
+			int32_t data = Data_in.read();
+			status = Bus_port->burst_write(cache_unique_priority, &data,
+					address, 1, cache_lock);
+			if (status == SIMPLE_BUS_ERROR)
+				sb_fprintf(stdout,
+						"%s %s : blocking-write failed at address %x\n",
+						sc_time_stamp().to_string().c_str(), name(), address);
+			wait(SC_ZERO_TIME);
+		}else{
+			address /= 4;
+			t.resize(TAG);
+			s.resize(SET);
+			o.resize(OFFSET);
+			bin_address = bitset<Bits_per_address>(address).to_string();
+			for (i = 0; i < Bits_per_address; i++) {
+				if (i < TAG) {
+					t.at(i) = bin_address.at(i);
+				} else if (i >= TAG && i < SET + TAG) {
+					s.at(i - TAG) = bin_address.at(i);
+				} else {
+					o.at(i - (TAG + SET)) = bin_address.at(i);
+				}
 			}
-		}
 
-		tag_field = bin_conv(t);
-		set_field = bin_conv(s);
-		offset_field = bin_conv(o);
-		processor_receive_event.notify();
-		wait(SC_ZERO_TIME);
+			tag_field = bin_conv(t);
+			set_field = bin_conv(s);
+			offset_field = bin_conv(o);
+			processor_receive_event.notify();
+			wait(SC_ZERO_TIME);
+		}
 	}
 }
 /**********************************************************************************************
@@ -144,6 +158,7 @@ inline void Cache::search_data() {
 			for (i = 0; i < n_ways; i++) {
 				if (Cache_Data[set_field][i].Tg == tag_field) {
 					Cache_Data[set_field][i].Dt[offset_field] = Data_in.read();
+					Cache_Data[set_field][i].valid = true;
 					break;
 				}
 			}
@@ -161,8 +176,7 @@ inline void Cache::search_data() {
 			for (i = 0; i < n_ways; i++) {
 				if (Cache_Data[set_field][i].valid == true) {
 					if (Cache_Data[set_field][i].Tg == tag_field) {
-						retrieved_data =
-								Cache_Data[set_field][i].Dt[offset_field];
+						retrieved_data = Cache_Data[set_field][i].Dt[offset_field];
 						data_found = true;
 						LRU[set_field] = ~LRU[set_field];
 						search_event.notify();
@@ -213,6 +227,20 @@ inline void Cache::send_data() {
 	while (true) {
 		wait(search_event);
 		Processor_out.write(retrieved_data);
+	}
+}
+
+/********************************************************************************
+ dump_cache
+ - Dump dados da cache
+ ********************************************************************************/
+inline void Cache::dump_cache() {
+	for(int set = 0; set < set_size; set++){
+		for(int way = 0; way < n_ways; way++){
+			for(int block = 0; block < block_size; block++){
+				cout << "Set: " << set << " Way: " << way << " Block: " << block << " ---- Data: " << Cache_Data[set][way].Dt[block] << endl;
+			}
+		}
 	}
 }
 

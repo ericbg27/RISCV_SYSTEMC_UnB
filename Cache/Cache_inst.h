@@ -43,7 +43,7 @@ SC_MODULE(Cache_inst) {
 	typedef struct {
 		bool valid;
 		int Tg;
-		int32_t Dt[block_size];
+		int32_t Dt[block_size] = {0};
 	} blocks;
 
 	blocks Cache_Data[set_size][n_ways];
@@ -70,6 +70,7 @@ SC_MODULE(Cache_inst) {
 	void receive_address(); //Recebe endereço do processador
 	void search_data(); //Procura se o endereço está na cache, caso não esteja envia requisição para a memória
 	void send_data(); //Envia o conteúdo do endereço para o processador
+	void dump_cache();
 
 	SC_HAS_PROCESS(Cache_inst);
 
@@ -201,6 +202,16 @@ inline void Cache_inst::send_data() {
 	while (true) {
 		wait(search_event);
 		Processor_out.write(retrieved_data);
+	}
+}
+
+inline void Cache_inst::dump_cache() {
+	for(int set = 0; set < set_size; set++){
+		for(int way = 0; way < n_ways; way++){
+			for(int block = 0; block < block_size; block++){
+				cout << "Set: " << set << " Way: " << way << " Block: " << block << " ---- Data: " << Cache_Data[set][way].Dt[block] << endl;
+			}
+		}
 	}
 }
 
