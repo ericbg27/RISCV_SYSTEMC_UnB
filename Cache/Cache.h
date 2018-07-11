@@ -155,13 +155,17 @@ inline void Cache::search_data() {
 		wait(processor_receive_event);
 		data_found = false;
 		if (Write_Signal.read()) {
-			for (i = 0; i < n_ways; i++) {
-				if (Cache_Data[set_field][i].Tg == tag_field) {
-					Cache_Data[set_field][i].Dt[offset_field] = Data_in.read();
-					Cache_Data[set_field][i].valid = true;
-					break;
-				}
+			if (LRU[set_field] == false) {
+				k = 0;
+			} else {
+				k = 1;
 			}
+			Cache_Data[set_field][k].Dt[offset_field] = Data_in.read();
+			if (Cache_Data[set_field][k].valid == false)
+				Cache_Data[set_field][k].valid = true;
+			Cache_Data[set_field][k].Tg = tag_field;
+			LRU[set_field] = ~LRU[set_field];
+
 			for (cnt = 0; cnt < block_size; cnt++) {
 				Store_data[cnt] = Cache_Data[set_field][i].Dt[cnt];
 			}
@@ -195,22 +199,21 @@ inline void Cache::search_data() {
 
 				cnt = 0;
 				i = 0;
-				j = set_field;
-				if (LRU[j] == false) {
+				if (LRU[set_field] == false) {
 					k = 0;
 				} else {
 					k = 1;
 				}
-
 				while (i < block_size && cnt < burst_size) {
-					Cache_Data[j][k].Dt[i] = received_data[cnt];
-					if (Cache_Data[j][k].valid == false)
-						Cache_Data[j][k].valid = true;
-					LRU[j] = ~LRU[j]; //Alteração do LRU
-					Cache_Data[j][k].Tg = tag_field;
+					Cache_Data[set_field][k].Dt[i] = received_data[cnt];
+					if (Cache_Data[set_field][k].valid == false)
+						Cache_Data[set_field][k].valid = true;
+					Cache_Data[set_field][k].Tg = tag_field;
 					i++;
 					cnt++;
 				}
+				LRU[set_field] = ~LRU[set_field]; //Alteração do LRU
+
 				retrieved_data = received_data[offset_field];
 				search_event.notify();
 
@@ -235,13 +238,16 @@ inline void Cache::send_data() {
  - Dump dados da cache
  ********************************************************************************/
 inline void Cache::dump_cache() {
+	cout << "-----------------------DATA CACHE-----------------------" << endl;
 	for(int set = 0; set < set_size; set++){
 		for(int way = 0; way < n_ways; way++){
 			for(int block = 0; block < block_size; block++){
-				cout << "Set: " << set << " Way: " << way << " Block: " << block << " ---- Data: " << Cache_Data[set][way].Dt[block] << endl;
+				cout << "Set: " << set << " Way: " << way << " Offset: " << block << " ---- Data: " << Cache_Data[set][way].Dt[block] << endl;
 			}
 		}
 	}
+	cout << "--------------------------------------------------------" << endl;
+
 }
 
 #endif

@@ -6,11 +6,12 @@
 
 using namespace std;
 
-//Verificar utilidade desses defines
 #define get_byte_0(w) (w & 0xFF)
 #define get_byte_1(w) ((w>>8) & 0xFF)
 #define get_byte_2(w) ((w>>16) & 0xFF)
 #define get_byte_3(w) ((w>>24) & 0xFF)
+//FAIXA DE ENDEREÇO PARA MEMORIA DE DADOS
+#define data_mem 0x020
 //
 // definicao dos valores do campo de extensao
 //

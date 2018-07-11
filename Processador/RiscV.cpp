@@ -6,6 +6,7 @@ void RiscV::init() {
 	while (ready_signal.read()) {
 		wait(SC_ZERO_TIME);
 	}
+	cout << "-----------------------START RISCV-----------------------" << endl;
 	init_event.notify(SC_ZERO_TIME);
 }
 /******************************************************************************
@@ -19,10 +20,13 @@ void RiscV::fetch() {
 		cout << "\nFETCH" << endl;
 		P_out_Inst.write(PC);
 		ri = P_in_Inst.read();
-		if(ri == 0){
-			sc_stop();
-		}
 		cout << "Ri: " << ri << endl;
+		if(ri == 0){
+			cout << "-----------------------END RISCV-----------------------" << endl;
+			while(true){
+				wait();
+			}
+		}
 		PC = PC + 4;
 		fetch_event.notify(SC_ZERO_TIME);
 		wait(execute_event);
@@ -103,9 +107,12 @@ void RiscV::debug_decode() {
 }
 
 void RiscV::dump_breg() {
+	cout << "-----------------------DUMP BREG-----------------------" << endl;
 	for (int i = 0; i < 32; i++) {
 		printf("BREG[%2d] = \t%8d \t\t\t%8x\n", i, breg[i], breg[i]);
 	}
+	cout << "-------------------------------------------------------" << endl;
+
 }
 
 void RiscV::execute() {
@@ -226,9 +233,7 @@ void RiscV::execute() {
 			PC = (PC-4) + (Imm << 1);
 			break;
 		case LW:
-			//MUDAR FAIXA DE ENDEREÇO
-			if (0x020 <= ((int32_t) breg[rs1] + Imm)) {
-				//GAMBIARRA
+			if (data_mem <= ((int32_t) breg[rs1] + Imm)) {
 				wait(10, SC_NS);
 				P_out_Data.write((int32_t) (breg[rs1] + Imm));
 				Write_Signal.write(false);
@@ -237,8 +242,7 @@ void RiscV::execute() {
 			}
 			break;
 		case SW:
-			//MUDAR FAIXA DE ENDEREÇO
-			if ((int32_t) (breg[rs1] + Imm) >= 0x020) {
+			if ((int32_t) (breg[rs1] + Imm) >= data_mem) {
 				wait(10, SC_NS);
 				P_out_Data.write((int32_t) (breg[rs1] + Imm));
 				Data.write(breg[rs2]);

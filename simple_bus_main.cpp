@@ -105,9 +105,10 @@ int sc_main(int, char **) {
 	init.bus_port(*bus);
 	init.ready_signal(ready_signal);
 
-	sc_start(200000, SC_NS);
+	sc_start(1000, SC_NS);
 
 	RV.dump_breg();
-
+	inst_cache.dump_cache();
+	data_cache.dump_cache();
 	return 0;
 }

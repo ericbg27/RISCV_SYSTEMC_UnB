@@ -171,22 +171,21 @@ inline void Cache_inst::search_data() {
 
 			cnt = 0;
 			i = 0;
-			j = set_field;
-			if (LRU[j] == false) {
+			if (LRU[set_field] == false) {
 				k = 0;
 			} else {
 				k = 1;
 			}
-
 			while (i < block_size && cnt < burst_size) {
-				Cache_Data[j][k].Dt[i] = received_data[cnt];
-				if (Cache_Data[j][k].valid == false)
-					Cache_Data[j][k].valid = true;
-				LRU[j] = ~LRU[j]; //Alteração do LRU
-				Cache_Data[j][k].Tg = tag_field;
+				Cache_Data[set_field][k].Dt[i] = received_data[cnt];
+				if (Cache_Data[set_field][k].valid == false)
+					Cache_Data[set_field][k].valid = true;
+				Cache_Data[set_field][k].Tg = tag_field;
 				i++;
 				cnt++;
 			}
+			LRU[set_field] = ~LRU[set_field]; //Alteração do LRU
+
 			retrieved_data = received_data[offset_field];
 			search_event.notify();
 
@@ -206,13 +205,15 @@ inline void Cache_inst::send_data() {
 }
 
 inline void Cache_inst::dump_cache() {
+	cout << "-----------------------INST CACHE------------------------" << endl;
 	for(int set = 0; set < set_size; set++){
 		for(int way = 0; way < n_ways; way++){
 			for(int block = 0; block < block_size; block++){
-				cout << "Set: " << set << " Way: " << way << " Block: " << block << " ---- Data: " << Cache_Data[set][way].Dt[block] << endl;
+				cout << "Set: " << set << " Way: " << way << " Offset: " << block << " ---- Data: " << Cache_Data[set][way].Dt[block] << endl;
 			}
 		}
 	}
+	cout << "--------------------------------------------------------" << endl;
 }
 
 #endif
